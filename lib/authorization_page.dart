@@ -1,3 +1,4 @@
+import 'package:authorization/validation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,17 @@ class Authorization extends StatefulWidget {
 
 class _AuthorizationState extends State<Authorization> {
 
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  late String _email;
+  late String _password;
+
+  late final pass;
+
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+
   @override
   Widget build(BuildContext context) {
     return
@@ -28,7 +40,7 @@ class _AuthorizationState extends State<Authorization> {
         body: Form(
           key: formKey,
           child: Center(
-            child: Container(
+            child: SizedBox(
               width: 300,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -72,51 +84,50 @@ class _AuthorizationState extends State<Authorization> {
 
 
 
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
 
-  late String _email;
-  late String _password;
+  void logInButton() async {
 
+    final AuthService _authService = AuthService();
 
-  final AuthService _authService = AuthService();
-
-
-  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-
-  void logInButton() async{
     _email = emailController.text;
     _password = passwordController.text;
 
-    User? user = await _authService.signIn(_email.trim(), _password.trim());
-
-
-    if(user == null){
-      showModalBottomSheet(
-          context: context,
-          builder: (BuildContext context) {
-            return Container(
-                padding: const EdgeInsets.all(20),
-                alignment: Alignment.center,
-                height: 200,
-                child: const Text(
-                  'Данный пользователь не зарегестрирован',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
-                )
-            );
-          }
-      );
-    }else {
+    try {
+      await _authService.signIn(_email.trim(), _password.trim());
       final pass = await _authService.passwordToHomePage(_password);
-      Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage(pass: pass)));
+
+      Navigator.push(context,
+          MaterialPageRoute(builder: (context) => HomePage(pass: pass))
+      );
+
       emailController.clear();
       passwordController.clear();
+
+    } on FirebaseAuthException catch(e) {
+      if(e.message == 'The password is invalid or the user does not have a password.'){
+        showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return invalidPassword;
+            }
+        );
+      }
+      else {
+        showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return userNotRegister;
+            }
+        );
+      }
     }
   }
 
 
   void registerButton() async{
+
+    final AuthService _authService = AuthService();
+
     _email = emailController.text;
     _password = passwordController.text;
 
@@ -126,21 +137,14 @@ class _AuthorizationState extends State<Authorization> {
       showModalBottomSheet(
           context: context,
           builder: (BuildContext context) {
-            return Container(
-                padding: const EdgeInsets.all(20),
-                alignment: Alignment.center,
-                height: 200,
-                child: const Text(
-                  'Данный пользователь уже зарегестрирован',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
-                )
-            );
+            return userAlredyRegister;
           }
       );
     }
     else{
       final pass = await _authService.passwordToHomePage(_password);
       Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage(pass: pass)));
+
       emailController.clear();
       passwordController.clear();
 
@@ -150,21 +154,6 @@ class _AuthorizationState extends State<Authorization> {
 
 
 
-String? validateEmail(String? formEmail){
-  if(formEmail == null || formEmail.isEmpty) return "Error";
-  String pattern = r'\w+@\w+\.\w+';
-  RegExp regex = RegExp(pattern);
-  if(!regex.hasMatch(formEmail)) return 'Invalid Email address format';
-  return null;
-}
 
-
-String? validatePassword(String? formPassword){
-  if(formPassword == null || formPassword.isEmpty) return "Error";
-  String pattern = r'^.{6,}$';
-  RegExp regex = RegExp(pattern);
-  if(!regex.hasMatch(formPassword)) return 'Password must be at least 6 characters';
-  return null;
-}
 
 
